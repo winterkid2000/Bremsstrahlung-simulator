@@ -1,0 +1,134 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Constants
+e = 1.602e-19  # Elementary charge (Coulombs)
+m_e = 9.109e-31  # Electron mass (kg)
+m_p = 1.6726e-27  # Proton mass (kg)
+epsilon_0 = 8.854e-12  # Permittivity of free space (F/m)
+c = 3e8  # Speed of light (m/s)
+
+# LINAC Simulation Function
+def linac_simulation(acceleration, num_steps=1000, air_fraction=0.8, photo_interaction_factor=0.1):
+    try:
+        # Initialize variables
+        velocity = 0.0
+        energy = 1e5  # Initial kinetic energy in joules (arbitrary for LINAC)
+        total_energy_emitted_brems = 0.0
+        total_energy_emitted_other = 0.0
+        cumulative_brems_power = 0.0
+
+        for step in range(num_steps):
+            # Effective acceleration
+            effective_accel = acceleration * air_fraction
+            velocity += effective_accel * (1e-9)  # Small time step
+
+            # Bremsstrahlung Power
+            power_brems = (e**2 * effective_accel**2) / (6 * np.pi * epsilon_0 * c**3)
+            cumulative_brems_power += power_brems
+            total_energy_emitted_brems += power_brems * (1e-9)  # Accumulate energy emitted
+
+            # Other Radiation (e.g., photoelectric effects)
+            power_other = power_brems * photo_interaction_factor
+            total_energy_emitted_other += power_other * (1e-9)
+
+            # Decrease particle energy due to radiation losses
+            energy -= (power_brems + power_other) * (1e-9)
+            if energy <= 0:
+                print("Warning: Energy depleted. Stopping simulation.")
+                break
+
+        # Final outputs
+        total_radiation = total_energy_emitted_brems + total_energy_emitted_other
+        brems_to_total_ratio = total_energy_emitted_brems / total_radiation if total_radiation > 0 else 0
+
+        return {
+            "Total Bremsstrahlung Energy (J)": total_energy_emitted_brems,
+            "Total Other Radiation Energy (J)": total_energy_emitted_other,
+            "Total Radiation Energy (J)": total_radiation,
+            "Bremsstrahlung/Total Radiation Ratio": brems_to_total_ratio,
+            "Average Bremsstrahlung Power (W)": cumulative_brems_power / num_steps
+        }
+    
+    except Exception as e:
+        print(f"Error in LINAC simulation: {e}")
+        return None
+
+# Synchrotron/Proton Accelerator Simulation Function
+def synchrotron_simulation(angular_velocity, num_steps=1000, air_fraction=0.9, synchrotron_factor=0.05):
+    try:
+        # Initialize particle parameters
+        radius = 5.0  # Radius of synchrotron in meters
+        velocity = angular_velocity * radius
+        energy = 1e6  # Initial kinetic energy in joules (for the proton in synchrotron)
+        total_energy_emitted_brems = 0.0
+        total_energy_emitted_synch = 0.0
+        cumulative_brems_power = 0.0
+
+        for step in range(num_steps):
+            # Radial (centripetal) acceleration with relativistic factor
+            gamma = 1 / np.sqrt(1 - (velocity**2 / c**2))  # Lorentz factor
+            effective_accel = (velocity ** 2) / radius * air_fraction * gamma
+
+            # Bremsstrahlung Power
+            power_brems = (e**2 * effective_accel**2) / (6 * np.pi * epsilon_0 * c**3)
+            cumulative_brems_power += power_brems
+            total_energy_emitted_brems += power_brems * (1e-9)  # Accumulate energy emitted
+
+            # Synchrotron Radiation Power
+            power_synch = power_brems * synchrotron_factor
+            total_energy_emitted_synch += power_synch * (1e-9)
+
+            # Decrease particle energy due to radiation losses
+            energy -= (power_brems + power_synch) * (1e-9)
+            if energy <= 0:
+                print("Warning: Energy depleted. Stopping simulation.")
+                break
+
+        # Final outputs
+        total_radiation = total_energy_emitted_brems + total_energy_emitted_synch
+        brems_to_total_ratio = total_energy_emitted_brems / total_radiation if total_radiation > 0 else 0
+
+        return {
+            "Total Bremsstrahlung Energy (J)": total_energy_emitted_brems,
+            "Total Synchrotron Radiation Energy (J)": total_energy_emitted_synch,
+            "Total Radiation Energy (J)": total_radiation,
+            "Bremsstrahlung/Total Radiation Ratio": brems_to_total_ratio,
+            "Average Bremsstrahlung Power (W)": cumulative_brems_power / num_steps
+        }
+    
+    except Exception as e:
+        print(f"Error in Synchrotron simulation: {e}")
+        return None
+
+# Simulation Parameters
+acceleration = 1e16  # Acceleration for LINAC
+angular_velocity = 1e8  # Angular velocity for synchrotron
+
+# Run Simulations
+linac_results = linac_simulation(acceleration)
+synchrotron_results = synchrotron_simulation(angular_velocity)
+
+# Display Results
+print("=== LINAC Simulation Results ===")
+if linac_results:
+    for key, value in linac_results.items():
+        print(f"{key}: {value}")
+
+print("\n=== Synchrotron Simulation Results ===")
+if synchrotron_results:
+    for key, value in synchrotron_results.items():
+        print(f"{key}: {value}")
+
+# Visualize Bremsstrahlung to Total Radiation Ratio
+if linac_results and synchrotron_results:
+    plt.figure(figsize=(10, 5))
+    labels = ["LINAC", "Synchrotron"]
+    ratios = [
+        linac_results["Bremsstrahlung/Total Radiation Ratio"],
+        synchrotron_results["Bremsstrahlung/Total Radiation Ratio"]
+    ]
+    plt.bar(labels, ratios, color=['blue', 'orange'])
+    plt.ylabel("Bremsstrahlung to Total Radiation Ratio")
+    plt.title("Bremsstrahlung to Total Radiation Comparison")
+    plt.show()

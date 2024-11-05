@@ -1,0 +1,75 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Constants
+m_p = 1.6726e-27  # Proton mass (kg)
+q = 1.602e-19  # Proton charge (Coulombs)
+epsilon_0 = 8.854e-12  # Permittivity of free space (F/m)
+c = 3e8  # Speed of light (m/s)
+radius = 5.0  # Synchrotron radius (meters)
+
+def synchrotron_simulation(angular_velocity, initial_energy=1e6, num_steps=1000, air_fraction=0.9, synchrotron_factor=0.05):
+    # Initialize particle parameters
+    energy = initial_energy  # Initial particle energy
+    velocity = angular_velocity * radius  # Calculate linear velocity
+    total_energy_emitted_brems = 0
+    total_energy_emitted_synch = 0
+    
+    bremsstrahlung_powers = []
+    energies = []
+    brems_to_total_ratio = []
+
+    for step in range(num_steps):
+        # Radial (centripetal) acceleration with relativistic adjustment
+        gamma = 1 / np.sqrt(1 - (velocity**2 / c**2))  # Lorentz factor
+        effective_accel = (velocity ** 2) / radius * air_fraction * gamma
+        
+        # Bremsstrahlung Power
+        power_brems = (q**2 * effective_accel**2) / (6 * np.pi * epsilon_0 * c**3)
+        bremsstrahlung_powers.append(power_brems)
+        total_energy_emitted_brems += power_brems * (1e-9)
+
+        # Synchrotron Radiation Power
+        power_synch = power_brems * synchrotron_factor
+        total_energy_emitted_synch += power_synch * (1e-9)
+
+        # Decrease particle energy due to radiation losses
+        energy -= (power_brems + power_synch) * (1e-9)
+        energies.append(energy)
+
+        # Calculate bremsstrahlung to total radiation ratio
+        total_radiation = total_energy_emitted_brems + total_energy_emitted_synch
+        ratio = total_energy_emitted_brems / total_radiation if total_radiation > 0 else 0
+        brems_to_total_ratio.append(ratio)
+
+    return bremsstrahlung_powers, energies, brems_to_total_ratio
+
+# Parameters
+angular_velocity = 1e8  # Angular velocity (rad/s) for the proton
+powers_brems, energies, brems_to_total = synchrotron_simulation(angular_velocity)
+
+# Plot results
+plt.figure(figsize=(15, 5))
+plt.subplot(1, 3, 1)
+plt.plot(powers_brems, label="Bremsstrahlung Power")
+plt.xlabel("Time Step")
+plt.ylabel("Power (W)")
+plt.title("Bremsstrahlung Power in Synchrotron")
+plt.legend()
+
+plt.subplot(1, 3, 2)
+plt.plot(energies, label="Remaining Particle Energy", color='orange')
+plt.xlabel("Time Step")
+plt.ylabel("Energy (J)")
+plt.title("Particle Energy Over Time")
+plt.legend()
+
+plt.subplot(1, 3, 3)
+plt.plot(brems_to_total, label="Brems/Total Radiation Ratio", color='green')
+plt.xlabel("Time Step")
+plt.ylabel("Ratio")
+plt.title("Bremsstrahlung to Total Radiation Ratio")
+plt.legend()
+
+plt.tight_layout()
+plt.show()

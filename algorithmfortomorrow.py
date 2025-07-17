@@ -36,7 +36,6 @@ def split_pancreas_mask_by_skeleton(total_mask, com_mask):
     curvatures_temp[peak1] = -1
     peak2 = np.argmax(curvatures_temp)
 
-    #스켈레톤화 된 경로 계산
     from scipy.spatial.distance import cdist
     dists = cdist(coords, coords)
     i, j = np.unravel_index(np.argmax(dists), dists.shape)
@@ -44,10 +43,15 @@ def split_pancreas_mask_by_skeleton(total_mask, com_mask):
     sorted_idx = np.argsort(np.linalg.norm(coords - start, axis=1))
     sorted_coords = coords[sorted_idx]
 
-    idx_hb = np.where(sorted_idx == peak1)[0][0]
-    idx_bt = np.where(sorted_idx == peak2)[0][0]
-    if idx_hb > idx_bt:
-        idx_hb, idx_bt = idx_bt, idx_hb
+    # 정렬된 순서에서 두 peak의 index 찾기
+    idx_peak1 = np.where(sorted_idx == peak1)[0][0]
+    idx_peak2 = np.where(sorted_idx == peak2)[0][0]
+
+    # 정렬: head-body 경계 먼저, body-tail 경계 나중
+    if idx_peak1 < idx_peak2:
+        idx_hb, idx_bt = idx_peak1, idx_peak2
+    else:
+        idx_hb, idx_bt = idx_peak2, idx_peak1
 
     head_pts = sorted_coords[:idx_hb]
     body_pts = sorted_coords[idx_hb:idx_bt]
